@@ -59,8 +59,12 @@ export function Footer() {
         </div>
 
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 Proof of Hustle. Built for the Aleph Hackathon.<br />Your reputation, decentralized.</p>
+          <p>&copy; 2025 Proof of Hustle.<br />Your reputation, decentralized.<br/>
+              🚀 Built during Aleph Hackathon 2025</p>
         </div>
+        
+           
+            
       </div>
     </footer>
   )
