@@ -3,11 +3,26 @@
 import { useAccount } from 'wagmi'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { TaskList } from '@/components/tasks/TaskList'
-import { ReputationDashboard } from '@/components/reputation/ReputationDashboard'
+// import { TaskList } from '@/components/tasks/TaskList'
+// import { ReputationDashboard } from '@/components/reputation/ReputationDashboard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertCircle, BarChart3, Briefcase, Plus, Zap } from 'lucide-react'
 import Link from 'next/link'
+import dynamic from "next/dynamic"
+
+const TaskList = dynamic(
+  () => 
+    import('@/components/tasks/TaskList'), 
+  {ssr: false}
+)
+
+const ReputationDashboard = dynamic(
+  () =>
+    import("@/components/reputation/ReputationDashboard"),
+  { ssr: false }
+)
+
+
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount()

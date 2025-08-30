@@ -1,9 +1,16 @@
 'use client'
 
-import { ReputationDashboard } from '@/components/reputation/ReputationDashboard'
+// import { ReputationDashboard } from '@/components/reputation/ReputationDashboard'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { REPUTATION_LEVELS } from '@/lib/constants'
 import { Award, BarChart3, Info } from 'lucide-react'
+import dynamic from "next/dynamic"
+
+const ReputationDashboard = dynamic(
+  () =>
+    import("@/components/reputation/ReputationDashboard"),
+  { ssr: false }
+);
 
 export default function ReputationPage() {
   return (

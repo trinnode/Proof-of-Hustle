@@ -12,7 +12,7 @@ import { Task } from '@/lib/types'
 import { AlertCircle, Briefcase, User } from 'lucide-react'
 import Link from 'next/link'
 
-export function TaskList() {
+export default function TaskList() {
   const { address } = useAccount()
   const [workerTasks, setWorkerTasks] = useState<Task[]>([])
   const [clientTasks, setClientTasks] = useState<Task[]>([])

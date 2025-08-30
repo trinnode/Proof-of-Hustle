@@ -10,7 +10,7 @@ import { useHustleScore, useReputationData } from '@/hooks/useContract'
 import { REPUTATION_LEVELS } from '@/lib/constants'
 import { AlertCircle, Award, BarChart3, CheckCircle, Target, TrendingUp, Zap } from 'lucide-react'
 
-export function ReputationDashboard() {
+export default function ReputationDashboard() {
   const { address } = useAccount()
   
   const { data: hustleScore, isLoading: scoreLoading } = useHustleScore(address as `0x${string}`)
