@@ -17,7 +17,8 @@ import { TASK_CATEGORY_OPTIONS, TASK_CREATION_FEE } from '@/lib/constants'
 import { uploadToIPFS } from '@/lib/ipfs'
 import { useProofOfHustleContract } from '@/hooks/useContract'
 import { toast } from 'sonner'
-import { Calendar, Clock, DollarSign, FileText, Zap } from 'lucide-react'
+import { useAccount } from 'wagmi'
+import { Clock, DollarSign, FileText, Zap } from 'lucide-react'
 
 const createTaskSchema = z.object({
   clientAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
@@ -32,7 +33,8 @@ type CreateTaskFormData = z.infer<typeof createTaskSchema>
 export function CreateTaskForm() {
   const [files, setFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const { createTask, isPending, isConfirming, isConfirmed, error } = useProofOfHustleContract()
+  const { createTask, isPending, isConfirming } = useProofOfHustleContract()
+  const { address, isConnected } = useAccount()
 
   const form = useForm<CreateTaskFormData>({
     resolver: zodResolver(createTaskSchema),
@@ -46,6 +48,11 @@ export function CreateTaskForm() {
   })
 
   const onSubmit = async (data: CreateTaskFormData) => {
+    if (!isConnected || !address) {
+      toast.error('Please connect your wallet first before creating a task.')
+      return
+    }
+
     if (files.length === 0) {
       toast.error('Please upload at least one file as proof of work')
       return
@@ -53,14 +60,25 @@ export function CreateTaskForm() {
 
     try {
       setIsUploading(true)
-      
-      // Upload files to IPFS
+
+      console.log('--- Starting IPFS upload ---')
+      console.log('Files to upload:', files)
+      console.log('Description:', data.description)
+
+      // Upload to IPFS
       const uploadResult = await uploadToIPFS(files, data.description)
-      
-      // Calculate deadline timestamp
+
+      console.log('IPFS upload result:', uploadResult)
+
+      if (!uploadResult.ipfsHash) {
+        console.error('IPFS upload returned empty hash')
+        toast.error('IPFS upload failed: empty hash returned')
+        return
+      }
+
       const deadlineTimestamp = Math.floor(new Date(data.deadline).getTime() / 1000)
-      
-      // Create task on blockchain
+
+      console.log('Creating task on blockchain...')
       await createTask(
         data.clientAddress as `0x${string}`,
         uploadResult.ipfsHash,
@@ -72,10 +90,15 @@ export function CreateTaskForm() {
       toast.success('Task created successfully!')
       form.reset()
       setFiles([])
-      
-    } catch (error) {
-      console.error('Error creating task:', error)
-      toast.error('Failed to create task. Please try again.')
+
+    } catch (err: any) {
+      console.error('Task creation error:', err)
+      if (err.response) {
+        console.error('Axios response data:', err.response.data)
+        toast.error(`IPFS upload failed: ${err.response.data?.error || err.message}`)
+      } else {
+        toast.error(`IPFS upload failed: ${err.message}`)
+      }
     } finally {
       setIsUploading(false)
     }
@@ -83,6 +106,7 @@ export function CreateTaskForm() {
 
   const selectedCategory = TASK_CATEGORY_OPTIONS.find(cat => cat.value === form.watch('category'))
   const difficultyWeight = form.watch('difficultyWeight')
+  const isLoading = isPending || isConfirming || isUploading
 
   const getDifficultyLabel = (weight: number) => {
     if (weight <= 100) return 'Simple'
@@ -91,8 +115,6 @@ export function CreateTaskForm() {
     if (weight <= 800) return 'Advanced'
     return 'Expert'
   }
-
-  const isLoading = isPending || isConfirming || isUploading
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -108,6 +130,7 @@ export function CreateTaskForm() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Client Address */}
             <FormField
               control={form.control}
               name="clientAddress"
@@ -118,11 +141,7 @@ export function CreateTaskForm() {
                     Client Address
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="0x..." 
-                      {...field}
-                      className="font-mono"
-                    />
+                    <Input placeholder="0x..." {...field} className="font-mono" />
                   </FormControl>
                   <FormDescription>
                     The Ethereum address of your client who will approve this task
@@ -132,6 +151,7 @@ export function CreateTaskForm() {
               )}
             />
 
+            {/* Category */}
             <FormField
               control={form.control}
               name="category"
@@ -168,6 +188,7 @@ export function CreateTaskForm() {
               )}
             />
 
+            {/* Difficulty */}
             <FormField
               control={form.control}
               name="difficultyWeight"
@@ -178,14 +199,7 @@ export function CreateTaskForm() {
                     Difficulty Weight: {field.value} ({getDifficultyLabel(field.value)})
                   </FormLabel>
                   <FormControl>
-                    <Slider
-                      min={1}
-                      max={1000}
-                      step={10}
-                      value={[field.value]}
-                      onValueChange={(value) => field.onChange(value[0])}
-                      className="w-full"
-                    />
+                    <Slider min={1} max={1000} step={10} value={[field.value]} onValueChange={(value) => field.onChange(value[0])} className="w-full" />
                   </FormControl>
                   <FormDescription>
                     Higher difficulty = more reputation gain. Be honest about complexity.
@@ -195,6 +209,7 @@ export function CreateTaskForm() {
               )}
             />
 
+            {/* Deadline */}
             <FormField
               control={form.control}
               name="deadline"
@@ -205,11 +220,7 @@ export function CreateTaskForm() {
                     Client Response Deadline
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      type="datetime-local" 
-                      {...field}
-                      min={new Date().toISOString().slice(0, 16)}
-                    />
+                    <Input type="datetime-local" {...field} min={new Date().toISOString().slice(0, 16)} />
                   </FormControl>
                   <FormDescription>
                     When should the client respond by? Tasks expire if not approved in time.
@@ -219,6 +230,7 @@ export function CreateTaskForm() {
               )}
             />
 
+            {/* Description */}
             <FormField
               control={form.control}
               name="description"
@@ -229,11 +241,7 @@ export function CreateTaskForm() {
                     Work Description
                   </FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Describe the work you completed for this client..."
-                      className="min-h-[100px]"
-                      {...field}
-                    />
+                    <Textarea placeholder="Describe the work you completed for this client..." className="min-h-[100px]" {...field} />
                   </FormControl>
                   <FormDescription>
                     Provide details about what you delivered to help with verification
@@ -243,44 +251,17 @@ export function CreateTaskForm() {
               )}
             />
 
+            {/* File Upload */}
             <div>
               <label className="text-sm font-medium mb-2 block">Proof of Work Files</label>
-              <FileUpload 
-                onFilesChange={setFiles}
-                disabled={isLoading}
-              />
+              <FileUpload onFilesChange={setFiles} disabled={isLoading} />
               <p className="text-xs text-muted-foreground mt-2">
                 Upload screenshots, documents, or any files that prove you completed the work
               </p>
             </div>
 
-            <div className="bg-muted p-4 rounded-lg">
-              <h4 className="font-medium mb-2 flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Fee Summary
-              </h4>
-              <div className="text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span>Task Creation Fee:</span>
-                  <span>{TASK_CREATION_FEE} ETH</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Gas Fees:</span>
-                  <span>~$2-10 (varies)</span>
-                </div>
-                <div className="border-t pt-2 mt-2 font-medium flex justify-between">
-                  <span>Total:</span>
-                  <span>{TASK_CREATION_FEE} ETH + Gas</span>
-                </div>
-              </div>
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading || files.length === 0}
-              size="lg"
-            >
+            {/* Submit */}
+            <Button type="submit" className="w-full" disabled={isLoading || files.length === 0} size="lg">
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <LoadingSpinner size="sm" />
